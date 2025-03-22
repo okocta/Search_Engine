@@ -1,4 +1,4 @@
-# Search Engine Architecture
+# Search Engine Architecture2
 
 ## Documentation
 This document describes the architecture of the search engine, designed to crawl local content, filter unwanted data, store it in a PostgreSQL database, and process search queries.
