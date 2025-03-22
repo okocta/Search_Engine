@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Explorer</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f8f9fa; }
+    input, select { padding: 10px; margin: 10px; width: 40%; border-radius: 5px; border: 1px solid #ddd; }
+    button { padding: 10px 20px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+    button:hover { background-color: #0056b3; }
+    #results { margin-top: 20px; text-align: center; }
+    table { width: 80%; margin: auto; border-collapse: collapse; background: white; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+    th { background-color: #007bff; color: white; }
+    tr:nth-child(even) { background-color: #f2f2f2; }
+    .highlight { background-color: yellow; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>📂 Search Engine</h1>
+
+<!-- Search Input -->
+<select id="searchType">
+  <option value="filename">🔎 Search by Filename</option>
+  <option value="content">📝 Search by Content</option>
+</select>
+<input type="text" id="searchQuery" placeholder="Enter search term...">
+<button onclick="searchFiles()">Search</button>
+
+<h2>📁 Files in folder_test</h2>
+
+<div id="results"></div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", fetchAllFiles);
+
+  function fetchAllFiles() {
+    fetch("http://localhost:8080/files")
+            .then(response => response.json())
+            .then(data => displayResults(data))
+            .catch(error => console.error("Error fetching files:", error));
+  }
+
+  function searchFiles() {
+    let query = document.getElementById("searchQuery").value.trim();
+    let searchType = document.getElementById("searchType").value;
+
+    if (!query) {
+      alert("Please enter a search term!");
+      return;
+    }
+
+    // Ensure query is properly formatted for full-text search
+    let queryArray = query.split(/\s+/).filter(word => word !== ""); // Remove empty entries
+    let fullTextQuery = queryArray.join(' & ');  // Join words with ' & ' for AND logic
+
+    if (!fullTextQuery) {
+      alert("Invalid search query!");
+      return;
+    }
+
+    let url = searchType === "filename"
+            ? `http://localhost:8080/files/search?filename=${encodeURIComponent(fullTextQuery)}`
+            : `http://localhost:8080/files/search/content?query=${encodeURIComponent(fullTextQuery)}`;
+
+    console.log("Search URL:", url);  // Log the URL for debugging
+
+    fetch(url)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Network response was not ok');
+              }
+              return response.json();
+            })
+            .then(data => displayResults(data, query))
+            .catch(error => {
+              console.error("Error:", error);
+              alert("An error occurred during the search. Please try again.");
+            });
+  }
+
+
+  function displayResults(data, query = "") {
+    let resultsDiv = document.getElementById("results");
+    resultsDiv.innerHTML = "";
+    if (data.length === 0) {
+      resultsDiv.innerHTML = "<p>No files found</p>";
+      return;
+    }
+
+    let table = `<table>
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Path</th>
+                      <th>Extension</th>
+                      <th>First 3 Lines</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>`;
+
+    data.forEach(file => {
+      let highlightedName = highlightText(file.filename, query);
+      let highlightedContent = highlightText(file.firstThreeLines, query);
+
+      table += `<tr>
+                  <td>${highlightedName}</td>
+                  <td>${file.filePath}</td>
+                  <td>${file.extension}</td>
+                  <td>${highlightedContent}</td>
+                  <td>${new Date(file.timestamp).toLocaleString()}</td>
+                </tr>`;
+    });
+
+    table += `</tbody></table>`;
+    resultsDiv.innerHTML = table;
+  }
+
+  function highlightText(text, query) {
+    if (!query) return text;
+    return text.replace(new RegExp(query, "gi"), match => `<span class="highlight">${match}</span>`);
+  }
+</script>
+
+</body>
+</html>

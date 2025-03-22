@@ -1,0 +1,4 @@
+Indexing Summary
+Total Files Processed: 3
+Total Files Skipped: 1
+Total Errors: 0
