@@ -21,13 +21,14 @@ import java.util.Optional;
 public class FileCrawler {
 
     @Autowired
-    private TextFileRepository repository;
+    private TextFileRepository repository; // Talks to Database
 
     @Autowired
-    private PlatformTransactionManager transactionManager;
+    private PlatformTransactionManager transactionManager; // Database changes
 
     @Value("${folder.root.path}")
     private String folderPath;
+
     private WatchService watchService;
     private final Map<WatchKey, Path> watchKeys = new HashMap<>();
 
@@ -45,16 +46,6 @@ public class FileCrawler {
     private int totalFilesSkipped = 0;
     private int totalErrors = 0;
 
-    private void logProgress() {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("index_report.txt"))) {
-            writer.write("Indexing Summary\n");
-            writer.write("Total Files Processed: " + totalFilesProcessed + "\n");
-            writer.write("Total Files Skipped: " + totalFilesSkipped + "\n");
-            writer.write("Total Errors: " + totalErrors + "\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     public void crawlAndStore() {
         try {
@@ -74,7 +65,7 @@ public class FileCrawler {
                             ZonedDateTime lastModifiedTime = ZonedDateTime.ofInstant(Files.getLastModifiedTime(file).toInstant(), java.time.ZoneId.systemDefault());
                             if (existingFile.isPresent()) {
                                 TextFile textFile = existingFile.get();
-                                if (!textFile.getContent().equals(content)) {
+                                if (!textFile.getContent().equals(content)) { // changed
                                     textFile.setContent(content);
                                     textFile.setFirstThreeLines(firstThreeLines);
                                     textFile.setTimestamp(lastModifiedTime);

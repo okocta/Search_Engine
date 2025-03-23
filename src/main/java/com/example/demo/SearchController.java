@@ -2,7 +2,6 @@ package com.example.demo;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +30,7 @@ public class SearchController {
     @GetMapping("/search/content")
     public List<TextFile> searchByContent(@RequestParam String query) {
         try {
-            // Sanitize input query for full-text search
+            // Sanitize input query for full-text search for multi-word search because there will be multiple '&' between words
             String fullTextQuery = sanitizeQuery(query);
 
             if (fullTextQuery.isEmpty()) {
@@ -58,8 +57,6 @@ public class SearchController {
 
         return sanitized.trim();
     }
-
-
 
     @GetMapping("/find")
     public Optional<TextFile> findByFilePath(@RequestParam String filePath) {

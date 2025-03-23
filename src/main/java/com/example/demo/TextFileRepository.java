@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Optional;
 
 interface TextFileRepository extends JpaRepository<TextFile, Long> {
-    List<TextFile> findByContentContainingIgnoreCase(String keyword);
     List<TextFile> findByFilenameContainingIgnoreCase(String filename);
     @Query(value = "SELECT * FROM text_file WHERE content_tsv @@ to_tsquery('english', :query)", nativeQuery = true)
     List<TextFile> searchByContent(@Param("query") String query);
