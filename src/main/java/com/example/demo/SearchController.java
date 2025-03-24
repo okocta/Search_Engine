@@ -44,7 +44,6 @@ public class SearchController {
             throw new RuntimeException("An error occurred during the search process.");
         }
     }
-
     // Utility function to sanitize query input
     private String sanitizeQuery(String query) {
         // Split and remove empty words
