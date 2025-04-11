@@ -21,6 +21,7 @@
 
 <h1>📂 Search Engine</h1>
 
+<!-- Search Input -->
 <select id="searchType">
   <option value="filename">🔎 Search by Filename</option>
   <option value="content">📝 Search by Content</option>
@@ -51,9 +52,8 @@
       return;
     }
 
-    // Ensure query is properly formatted for full-text search
-    let queryArray = query.split(/\s+/).filter(word => word !== ""); // Remove empty entries
-    let fullTextQuery = queryArray.join(' & ');  // Join words with ' & ' for AND logic
+    let queryArray = query.split(/\s+/).filter(word => word !== "");
+    let fullTextQuery = queryArray.join(' & ');
 
     if (!fullTextQuery) {
       alert("Invalid search query!");
@@ -64,7 +64,7 @@
             ? `http://localhost:8080/files/search?filename=${encodeURIComponent(fullTextQuery)}`
             : `http://localhost:8080/files/search/content?query=${encodeURIComponent(fullTextQuery)}`;
 
-    console.log("Search URL:", url);  // Log the URL for debugging
+    console.log("Search URL:", url);
 
     fetch(url)
             .then(response => {

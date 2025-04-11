@@ -21,10 +21,10 @@ import java.util.Optional;
 public class FileCrawler {
 
     @Autowired
-    private TextFileRepository repository; // Talks to Database
+    private TextFileRepository repository;
 
     @Autowired
-    private PlatformTransactionManager transactionManager; // Database changes
+    private PlatformTransactionManager transactionManager;
 
     @Value("${folder.root.path}")
     private String folderPath;
@@ -49,7 +49,6 @@ public class FileCrawler {
 
     public void crawlAndStore() {
         try {
-            // Start walking through the folder and subfolders using full paths
             Files.walkFileTree(Paths.get(folderPath).toAbsolutePath(), new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
@@ -58,7 +57,6 @@ public class FileCrawler {
                             String content = new String(Files.readAllBytes(file));
                             String firstThreeLines = content.lines().limit(3).reduce("", (a, b) -> a + "\n" + b);
 
-                            // Use full absolute path instead of relative
                             String fullPath = file.toAbsolutePath().toString();
 
                             Optional<TextFile> existingFile = repository.findByFilePath(fullPath);
@@ -89,20 +87,19 @@ public class FileCrawler {
                             e.printStackTrace();
                         }
                     }else {
-                        totalFilesSkipped++;  // Increment skipped file count
+                        totalFilesSkipped++;
                     }
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                    // Register each subdirectory with the WatchService using full paths
                     registerDirectory(dir.toAbsolutePath());
                     return FileVisitResult.CONTINUE;
                 }
                 @Override
                 public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                    totalErrors++;  // Count failed visits
+                    totalErrors++;
                     return FileVisitResult.CONTINUE;
                 }
             });
@@ -114,7 +111,7 @@ public class FileCrawler {
     }
 
     private void registerDirectory(Path dir) throws IOException {
-        // Ensure we register the directory properly
+
         WatchKey key = dir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
         watchKeys.put(key, dir);
         System.out.println("Registered directory for watching: " + dir);
@@ -128,10 +125,10 @@ public class FileCrawler {
                 TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
                 while (true) {
-                    // Wait for a key to be ready
+
                     WatchKey key;
                     try {
-                        key = watchService.take();  // Blocks until an event is available
+                        key = watchService.take();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         return;
@@ -148,7 +145,6 @@ public class FileCrawler {
                         WatchEvent.Kind<?> kind = event.kind();
                         Path changedFile = dir.resolve((Path) event.context());
 
-                        // Use full absolute path for everything
                         String fullPath = changedFile.toAbsolutePath().toString();
 
                         System.out.println("Event kind: " + kind);
@@ -157,7 +153,6 @@ public class FileCrawler {
                         if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
                             System.out.println("New file detected: " + fullPath);
 
-                            // If the new entry is a directory, register it for watching
                             if (Files.isDirectory(changedFile)) {
                                 registerDirectory(changedFile.toAbsolutePath());
                             }
@@ -166,14 +161,13 @@ public class FileCrawler {
                         } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
                             System.out.println("File deleted: " + fullPath);
 
-                            // Ensure we're deleting the correct file
                             transactionTemplate.execute(status -> {
                                 Optional<TextFile> fileToDelete = repository.findByFilePath(fullPath);
                                 if (fileToDelete.isPresent()) {
                                     repository.delete(fileToDelete.get());
-                                    System.out.println("✅ Deleted from DB: " + fullPath);
+                                    System.out.println(" Deleted from DB: " + fullPath);
                                 } else {
-                                    System.out.println("❌ File not found in DB (Check Path Format!): " + fullPath);
+                                    System.out.println(" File not found in DB (Check Path Format!): " + fullPath);
                                 }
                                 return null;
                             });
@@ -183,7 +177,6 @@ public class FileCrawler {
                         }
                     }
 
-                    // Reset the key to allow for further monitoring
                     boolean valid = key.reset();
                     if (!valid) {
                         watchKeys.remove(key);
@@ -198,7 +191,6 @@ public class FileCrawler {
         }).start();
     }
     private void generateReport() {
-        // Create a report at the end of the indexing process
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("index_report.txt"))) {
             writer.write("Indexing Summary\n");
             writer.write("Total Files Processed: " + totalFilesProcessed + "\n");

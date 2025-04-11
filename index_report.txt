@@ -1,4 +1,4 @@
 Indexing Summary
-Total Files Processed: 1
-Total Files Skipped: 2
+Total Files Processed: 1000
+Total Files Skipped: 0
 Total Errors: 0

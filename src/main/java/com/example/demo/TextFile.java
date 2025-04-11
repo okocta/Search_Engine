@@ -14,11 +14,13 @@ public class TextFile {
     private Long id;
 
     @Column(unique = true)
+    private String extension;
+    private ZonedDateTime timestamp;
+    @Column(columnDefinition = "TEXT")
+    private String firstThreeLines;
     private String filePath;
     private String filename;
-    private String extension;
-    private String firstThreeLines;
-    private ZonedDateTime timestamp;
+
 
     @Column(columnDefinition = "TEXT")
     private String content;
@@ -38,5 +40,36 @@ public class TextFile {
     public void setTimestamp(ZonedDateTime timestamp) { this.timestamp = timestamp; }
     public void setFirstThreeLines(String firstThreeLines) { this.firstThreeLines = firstThreeLines; }
 
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
+    public String getExtension() {
+        return extension;
+    }
+
+    public void setExtension(String extension) {
+        this.extension = extension;
+    }
+
+    public String getFirstThreeLines() {
+        return firstThreeLines;
+    }
+
+    public ZonedDateTime getTimestamp() {
+        return timestamp;
+    }
 }
 

@@ -15,13 +15,11 @@ public class SearchController {
     @Autowired
     private TextFileRepository textFileRepository;
 
-    // List all files in folder_test
     @GetMapping
     public List<TextFile> getAllFiles() {
         return textFileRepository.findAll();
     }
 
-    // Search files by name
     @GetMapping("/search")
     public List<TextFile> searchByFilename(@RequestParam String filename) {
         return textFileRepository.findByFilenameContainingIgnoreCase(filename);
@@ -30,7 +28,7 @@ public class SearchController {
     @GetMapping("/search/content")
     public List<TextFile> searchByContent(@RequestParam String query) {
         try {
-            // Sanitize input query for full-text search for multi-word search because there will be multiple '&' between words
+
             String fullTextQuery = sanitizeQuery(query);
 
             if (fullTextQuery.isEmpty()) {
@@ -44,14 +42,12 @@ public class SearchController {
             throw new RuntimeException("An error occurred during the search process.");
         }
     }
-    // Utility function to sanitize query input
+
     private String sanitizeQuery(String query) {
-        // Split and remove empty words
         String[] words = query.trim().split("\\s+");
 
-        // Join words with ' & ' ensuring valid syntax
         String sanitized = Arrays.stream(words)
-                .filter(word -> word.matches("\\w+")) // Keep only valid words
+                .filter(word -> word.matches("\\w+"))
                 .collect(Collectors.joining(" & "));
 
         return sanitized.trim();
