@@ -4,8 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
+import com.github.cliftonlabs.json_simple.JsonObject;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -23,21 +23,21 @@ public class FileCrawler {
     @Autowired
     private TextFileRepository repository;
 
-    @Autowired
-    private PlatformTransactionManager transactionManager;
 
     @Value("${folder.root.path}")
     private String folderPath;
 
+    @Value("${report.format:txt}")
+    private String reportFormat;
+
     private WatchService watchService;
     private final Map<WatchKey, Path> watchKeys = new HashMap<>();
 
-    @PostConstruct
+    @PostMapping
     public void initialize() {
         try {
             watchService = FileSystems.getDefault().newWatchService();
             crawlAndStore();
-            startWatching();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -63,22 +63,40 @@ public class FileCrawler {
                             ZonedDateTime lastModifiedTime = ZonedDateTime.ofInstant(Files.getLastModifiedTime(file).toInstant(), java.time.ZoneId.systemDefault());
                             if (existingFile.isPresent()) {
                                 TextFile textFile = existingFile.get();
-                                if (!textFile.getContent().equals(content)) { // changed
+                                textFile.setRankingScore(Ranking.computeRankingScore(
+                                        file,
+                                        content,
+                                        "txt",
+                                        Files.size(file),
+                                        Files.getLastModifiedTime(file).toMillis()
+                                ));
+
+                                if (!textFile.getContent().equals(content)) {
                                     textFile.setContent(content);
                                     textFile.setFirstThreeLines(firstThreeLines);
                                     textFile.setTimestamp(lastModifiedTime);
-                                    repository.save(textFile);
-                                    totalFilesProcessed++;
                                 }
+                                repository.save(textFile);
+                                totalFilesProcessed++;
                             } else {
+                                double rankingScore = Ranking.computeRankingScore(
+                                        file,
+                                        content,
+                                        "txt",
+                                        Files.size(file),
+                                        Files.getLastModifiedTime(file).toMillis()
+                                );
+
                                 repository.save(new TextFile(
                                         fullPath,
                                         file.getFileName().toString(),
                                         "txt",
                                         firstThreeLines,
                                         lastModifiedTime,
-                                        content
+                                        content,
+                                        rankingScore
                                 ));
+
                                 totalFilesProcessed++;
 
                             }
@@ -93,11 +111,6 @@ public class FileCrawler {
                 }
 
                 @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                    registerDirectory(dir.toAbsolutePath());
-                    return FileVisitResult.CONTINUE;
-                }
-                @Override
                 public FileVisitResult visitFileFailed(Path file, IOException exc) {
                     totalErrors++;
                     return FileVisitResult.CONTINUE;
@@ -110,87 +123,8 @@ public class FileCrawler {
         generateReport();
     }
 
-    private void registerDirectory(Path dir) throws IOException {
 
-        WatchKey key = dir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
-        watchKeys.put(key, dir);
-        System.out.println("Registered directory for watching: " + dir);
-    }
-
-    public void startWatching() {
-        new Thread(() -> {
-            try {
-                System.out.println("Watching folder and subdirectories: " + folderPath);
-
-                TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-
-                while (true) {
-
-                    WatchKey key;
-                    try {
-                        key = watchService.take();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
-
-                    Path dir = watchKeys.get(key);
-
-                    if (dir == null) {
-                        System.err.println("WatchKey not recognized!");
-                        continue;
-                    }
-
-                    for (WatchEvent<?> event : key.pollEvents()) {
-                        WatchEvent.Kind<?> kind = event.kind();
-                        Path changedFile = dir.resolve((Path) event.context());
-
-                        String fullPath = changedFile.toAbsolutePath().toString();
-
-                        System.out.println("Event kind: " + kind);
-                        System.out.println("Changed file: " + fullPath);
-
-                        if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
-                            System.out.println("New file detected: " + fullPath);
-
-                            if (Files.isDirectory(changedFile)) {
-                                registerDirectory(changedFile.toAbsolutePath());
-                            }
-
-                            crawlAndStore();
-                        } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-                            System.out.println("File deleted: " + fullPath);
-
-                            transactionTemplate.execute(status -> {
-                                Optional<TextFile> fileToDelete = repository.findByFilePath(fullPath);
-                                if (fileToDelete.isPresent()) {
-                                    repository.delete(fileToDelete.get());
-                                    System.out.println(" Deleted from DB: " + fullPath);
-                                } else {
-                                    System.out.println(" File not found in DB (Check Path Format!): " + fullPath);
-                                }
-                                return null;
-                            });
-                        } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-                            System.out.println("File modified: " + fullPath);
-                            crawlAndStore();
-                        }
-                    }
-
-                    boolean valid = key.reset();
-                    if (!valid) {
-                        watchKeys.remove(key);
-                        if (watchKeys.isEmpty()) {
-                            break;
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-    private void generateReport() {
+    private void generateTXTReport() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("index_report.txt"))) {
             writer.write("Indexing Summary\n");
             writer.write("Total Files Processed: " + totalFilesProcessed + "\n");
@@ -201,4 +135,27 @@ public class FileCrawler {
             e.printStackTrace();
         }
     }
+    private void generateReport() {
+
+            if (reportFormat.trim().equalsIgnoreCase("json")) {
+                generateJsonReport();
+            } else {
+                generateTXTReport();
+            }
+
+    }
+    private void generateJsonReport() {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.put("filesProcessed", totalFilesProcessed);
+        jsonObject.put("filesSkipped", totalFilesSkipped);
+        jsonObject.put("errors", totalErrors);
+
+        try (FileWriter file = new FileWriter("index_report.json")) {
+            file.write(jsonObject.toJson());
+            System.out.println("Indexing report generated: index_report.json");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

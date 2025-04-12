@@ -3,6 +3,7 @@ package com.example.demo;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -17,40 +18,40 @@ public class SearchController {
 
     @GetMapping
     public List<TextFile> getAllFiles() {
-        return textFileRepository.findAll();
+
+        List<TextFile> files = textFileRepository.findAll();
+        files.sort(Comparator.comparingDouble(TextFile::getRankingScore).reversed());
+        return files;
     }
 
     @GetMapping("/search")
-    public List<TextFile> searchByFilename(@RequestParam String filename) {
-        return textFileRepository.findByFilenameContainingIgnoreCase(filename);
-    }
+    public List<TextFile> search(@RequestParam String query) {
+        QueryParser parser = new QueryParser(query);
 
-    @GetMapping("/search/content")
-    public List<TextFile> searchByContent(@RequestParam String query) {
-        try {
+        List<TextFile> results = textFileRepository.findAll().stream()
+                .filter(file -> {
+                    boolean matches = true;
 
-            String fullTextQuery = sanitizeQuery(query);
+                    if (parser.has("content")) {
+                        matches &= parser.get("content").stream()
+                                .allMatch(value -> file.getContent() != null && file.getContent().toLowerCase().contains(value));
+                    }
 
-            if (fullTextQuery.isEmpty()) {
-                throw new IllegalArgumentException("Invalid search query.");
-            }
+                    if (parser.has("path")) {
+                        matches &= parser.get("path").stream()
+                                .allMatch(value -> file.getFilePath() != null && file.getFilePath().toLowerCase().contains(value));
+                    }
+                    if (parser.has("filename")) {
+                        matches &= parser.get("filename").stream()
+                                .allMatch(value -> file.getFilename() != null && file.getFilename().toLowerCase().contains(value));
+                    }
 
-            System.out.println("Query: " + fullTextQuery);
-            return textFileRepository.searchByContent(fullTextQuery);
-        } catch (Exception e) {
-            System.err.println("Error during search: " + e.getMessage());
-            throw new RuntimeException("An error occurred during the search process.");
-        }
-    }
+                    return matches;
+                })
+                .sorted(Comparator.comparingDouble(TextFile::getRankingScore).reversed())
+                .collect(Collectors.toList());
 
-    private String sanitizeQuery(String query) {
-        String[] words = query.trim().split("\\s+");
-
-        String sanitized = Arrays.stream(words)
-                .filter(word -> word.matches("\\w+"))
-                .collect(Collectors.joining(" & "));
-
-        return sanitized.trim();
+        return results;
     }
 
     @GetMapping("/find")

@@ -20,18 +20,22 @@ public class TextFile {
     private String firstThreeLines;
     private String filePath;
     private String filename;
+    @Column
+    private Double rankingScore;
+
 
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    public TextFile(String filePath, String filename, String extension, String firstThreeLines, ZonedDateTime timestamp, String content) {
+    public TextFile(String filePath, String filename, String extension, String firstThreeLines, ZonedDateTime timestamp, String content, double rankingScore) {
         this.filePath = filePath;
         this.filename = filename;
         this.extension = extension;
         this.firstThreeLines = firstThreeLines;
         this.timestamp = timestamp;
         this.content = content;
+        this.rankingScore = rankingScore;
     }
 
     public TextFile() {}
@@ -70,6 +74,13 @@ public class TextFile {
 
     public ZonedDateTime getTimestamp() {
         return timestamp;
+    }
+    public double getRankingScore() {
+        return rankingScore;
+    }
+
+    public void setRankingScore(Double rankingScore) {
+        this.rankingScore = rankingScore;
     }
 }
 
