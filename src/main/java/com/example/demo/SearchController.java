@@ -16,6 +16,14 @@ public class SearchController {
     @Autowired
     private TextFileRepository textFileRepository;
 
+    private final EventManager eventManager= new EventManager();
+    private final LoggingListener loggingListener = new LoggingListener();
+
+
+    public SearchController() {
+       eventManager.addObserver(loggingListener);
+    }
+
     @GetMapping
     public List<TextFile> getAllFiles() {
 
@@ -26,6 +34,7 @@ public class SearchController {
 
     @GetMapping("/search")
     public List<TextFile> search(@RequestParam String query) {
+        eventManager.notifyObservers(query);
         QueryParser parser = new QueryParser(query);
 
         List<TextFile> results = textFileRepository.findAll().stream()
@@ -48,6 +57,14 @@ public class SearchController {
 
                     return matches;
                 })
+                .peek(file -> {
+                    if (parser.has("content")) {
+                        long boost = parser.get("content").stream()
+                                .mapToLong(loggingListener::getCountTerm)
+                                .sum();
+                        file.setRankingScore(Math.min(100.0,Math.max(0.0,file.getRankingScore() + boost)));
+                    }
+                })
                 .sorted(Comparator.comparingDouble(TextFile::getRankingScore).reversed())
                 .collect(Collectors.toList());
 
@@ -58,5 +75,10 @@ public class SearchController {
     public Optional<TextFile> findByFilePath(@RequestParam String filePath) {
         return textFileRepository.findByFilePath(filePath);
     }
+    @GetMapping("/search/history")
+    public List<String> getSearchHistory() {
+        return loggingListener.getHistory(10);
+    }
+
 
 }

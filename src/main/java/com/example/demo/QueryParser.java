@@ -15,7 +15,6 @@ public class QueryParser {
         while (matcher.find()) {
             String key = matcher.group(1);
             String value = matcher.group(2);
-
             filters.computeIfAbsent(key, k -> new ArrayList<>()).add(value.toLowerCase());
         }
     }

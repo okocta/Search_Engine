@@ -13,8 +13,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.Map;
+
 import java.util.Optional;
 
 @Service
@@ -27,20 +26,13 @@ public class FileCrawler {
     @Value("${folder.root.path}")
     private String folderPath;
 
-    @Value("${report.format:txt}")
+    @Value("${report.format}")
     private String reportFormat;
 
-    private WatchService watchService;
-    private final Map<WatchKey, Path> watchKeys = new HashMap<>();
 
-    @PostMapping
+    @PostConstruct
     public void initialize() {
-        try {
-            watchService = FileSystems.getDefault().newWatchService();
             crawlAndStore();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
     private int totalFilesProcessed = 0;
     private int totalFilesSkipped = 0;

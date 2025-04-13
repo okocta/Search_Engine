@@ -1,8 +1,6 @@
 package com.example.demo;
 
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
 
 public class Ranking {
 
@@ -23,7 +21,6 @@ public class Ranking {
 
         double minSize = 1024.0;     // 1KB
         double maxSize = 30 * 1024.0; // 30KB
-
         double normalizedSize = Math.max(minSize, Math.min(fileSize, maxSize));
         double sizeScore = (maxSize - normalizedSize) / (maxSize - minSize) * 20.0;
         score += sizeScore;

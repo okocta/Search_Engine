@@ -23,13 +23,32 @@
 
 <input type="text" id="searchQuery">
 <button onclick="searchFiles()">Search</button>
+<div id="suggestions" style="margin-top:10px;"></div>
+
 
 <h2>📂 Files in folder_test</h2>
 <div id="results"></div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", fetchAllFiles);
 
+  document.addEventListener("DOMContentLoaded", ()=>{
+    fetchAllFiles();
+    fetchSuggestions();
+  });
+  function fetchSuggestions() {
+    fetch("http://localhost:8080/files/search/history")
+            .then(res => res.json())
+            .then(data => {
+              const container = document.getElementById("suggestions");
+              if (data.length === 0) {
+                container.innerHTML = "<p>No recent queries.</p>";
+                return;
+              }
+
+              const list = data.map(q => `<li>${q}</li>`).join("");
+              container.innerHTML = `<h4>Recent Searches:</h4><ul>${list}</ul>`;
+            });
+  }
   function fetchAllFiles() {
     fetch("http://localhost:8080/files")
             .then(response => response.json())
@@ -53,7 +72,7 @@
               if (!response.ok) throw new Error("Search failed");
               return response.json();
             })
-            .then(data => displayResults(data, query))
+            .then(data => {displayResults(data, query);fetchSuggestions();})
             .catch(error => {
               console.error("Search error:", error);
               alert("An error occurred during the search. Please try again.");
