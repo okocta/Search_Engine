@@ -25,6 +25,7 @@
 <button onclick="searchFiles()">Search</button>
 <div id="suggestions" style="margin-top:10px;"></div>
 
+<div id="widgetContainer"></div>
 
 <h2>📂 Files in folder_test</h2>
 <div id="results"></div>
@@ -58,6 +59,26 @@
 
   function searchFiles() {
     const query = document.getElementById("searchQuery").value.trim();
+    const widgetContainer = document.getElementById("widgetContainer");
+    if (query.includes("calculator")) {
+      widgetContainer.innerHTML = `
+      <h3>Calculator</h3>
+      <iframe src="calculator.html" width="800" height="400" style="border: none;"></iframe>
+    `;
+    } else {
+      if (query.includes("clock")) {
+        widgetContainer.innerHTML = `
+      <h3>Clock</h3>
+      <iframe src="clock.html" width="800" height="400" style="border: none;"></iframe>
+    `;
+      }else if (query.includes("weather")) {
+        widgetContainer.innerHTML = `
+      <h3>Weather</h3>
+      <iframe src="weather.html" width="800" height="200" style="border: none;"></iframe>
+    `;
+      }else widgetContainer.innerHTML = "";
+
+    }
 
     if (!query) {
       alert("Please enter a query.");
@@ -82,6 +103,7 @@
   function displayResults(data, query = "") {
     const resultsDiv = document.getElementById("results");
     resultsDiv.innerHTML = "";
+
 
     if (data.length === 0) {
       resultsDiv.innerHTML = "<p>No files found.</p>";
@@ -114,6 +136,7 @@
     table += `</tbody></table>`;
     resultsDiv.innerHTML = table;
   }
+
 
 
 </script>
