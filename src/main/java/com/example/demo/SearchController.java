@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Arrays;
@@ -13,15 +14,20 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class SearchController {
 
-    @Autowired
     private TextFileRepository textFileRepository;
 
-    private final EventManager eventManager= new EventManager();
-    private final LoggingListener loggingListener = new LoggingListener();
+    private final EventManager eventManager;
+    private final LoggingListener loggingListener;
+    private Search search;
 
-
-    public SearchController() {
-       eventManager.addObserver(loggingListener);
+    @Autowired
+    public SearchController(TextFileRepository textFileRepository) {
+       this.textFileRepository = textFileRepository;
+       this.loggingListener= new LoggingListener();
+       this.eventManager = new EventManager();
+       this.eventManager.addObserver(loggingListener);
+       RealSearch realSearch = new RealSearch(this.textFileRepository, this.loggingListener);
+       this.search = new SearchProxy(realSearch);
     }
 
     @GetMapping
@@ -35,40 +41,7 @@ public class SearchController {
     @GetMapping("/search")
     public List<TextFile> search(@RequestParam String query) {
         eventManager.notifyObservers(query);
-        QueryParser parser = new QueryParser(query);
-
-        List<TextFile> results = textFileRepository.findAll().stream()
-                .filter(file -> {
-                    boolean matches = true;
-
-                    if (parser.has("content")) {
-                        matches &= parser.get("content").stream()
-                                .allMatch(value -> file.getContent() != null && file.getContent().toLowerCase().contains(value));
-                    }
-
-                    if (parser.has("path")) {
-                        matches &= parser.get("path").stream()
-                                .allMatch(value -> file.getFilePath() != null && file.getFilePath().toLowerCase().contains(value));
-                    }
-                    if (parser.has("filename")) {
-                        matches &= parser.get("filename").stream()
-                                .allMatch(value -> file.getFilename() != null && file.getFilename().toLowerCase().contains(value));
-                    }
-
-                    return matches;
-                })
-                .peek(file -> {
-                    if (parser.has("content")) {
-                        long boost = parser.get("content").stream()
-                                .mapToLong(loggingListener::getCountTerm)
-                                .sum();
-                        file.setRankingScore(Math.min(100.0,Math.max(0.0,file.getRankingScore() + boost)));
-                    }
-                })
-                .sorted(Comparator.comparingDouble(TextFile::getRankingScore).reversed())
-                .collect(Collectors.toList());
-
-        return results;
+        return search.search(query);
     }
 
     @GetMapping("/find")
