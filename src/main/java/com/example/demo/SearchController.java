@@ -3,10 +3,9 @@ package com.example.demo;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -19,13 +18,16 @@ public class SearchController {
     private final EventManager eventManager;
     private final LoggingListener loggingListener;
     private Search search;
+    private SpellService spellService;
 
     @Autowired
-    public SearchController(TextFileRepository textFileRepository) {
+    public SearchController(TextFileRepository textFileRepository) throws IOException {
        this.textFileRepository = textFileRepository;
        this.loggingListener= new LoggingListener();
        this.eventManager = new EventManager();
        this.eventManager.addObserver(loggingListener);
+       Spelling spelling= new Spelling("src/main/resources/big.txt");
+       this.spellService=new SpellService(spelling);
        RealSearch realSearch = new RealSearch(this.textFileRepository, this.loggingListener);
        this.search = new SearchProxy(realSearch);
     }
@@ -39,9 +41,21 @@ public class SearchController {
     }
 
     @GetMapping("/search")
-    public List<TextFile> search(@RequestParam String query) {
+    public Map<String,Object> search(@RequestParam String query) {
         eventManager.notifyObservers(query);
-        return search.search(query);
+        String correctedQuery = spellService.correctQuery(query);
+        System.out.println("corrected query: " + correctedQuery);
+        List<TextFile> results =search.search(correctedQuery);
+        Map<String, Long> type=results.stream().collect(Collectors.groupingBy(TextFile::getExtension, Collectors.counting()));
+        Map<String, Long> year=results.stream().collect(Collectors.groupingBy(f->String.valueOf(f.getTimestamp().getYear()), Collectors.counting()));
+        Map<String, Long> language=results.stream().filter(f->f.getExtension().equals("c")||f.getExtension().equals("java")).collect(Collectors.groupingBy(TextFile::getExtension, Collectors.counting()));
+        Map<String, Object> response = new HashMap<>();
+        response.put("results", results);
+        response.put("correctedQuery", correctedQuery);
+        response.put("type", type);
+        response.put("year", year);
+        response.put("language", language);
+        return response;
     }
 
     @GetMapping("/find")

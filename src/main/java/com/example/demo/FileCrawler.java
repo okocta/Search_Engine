@@ -1,13 +1,17 @@
 package com.example.demo;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import com.github.cliftonlabs.json_simple.JsonObject;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.*;
@@ -44,10 +48,31 @@ public class FileCrawler {
             Files.walkFileTree(Paths.get(folderPath).toAbsolutePath(), new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (file.toString().endsWith(".txt")) {
+                    String fileName = file.getFileName().toString();
+                    if (file.toString().endsWith(".txt")||file.toString().endsWith(".pdf")||file.toString().endsWith(".docx")||file.toString().endsWith(".xlsx")||file.toString().endsWith(".jpg")||file.toString().endsWith(".png")||file.toString().endsWith(".gif")||file.toString().endsWith(".c")||file.toString().endsWith(".java")) {
                         try {
-                            String content = new String(Files.readAllBytes(file));
-                            String firstThreeLines = content.lines().limit(3).reduce("", (a, b) -> a + "\n" + b);
+                            String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+                            String content = "";
+                            if(extension.equals("txt")||extension.equals("c")||extension.equals("java")){
+                                content= new String(Files.readAllBytes(file));
+                            }else if(extension.equals("pdf")){
+                                PDDocument document= PDDocument.load(file.toFile());
+                                PDFTextStripper stripper= new PDFTextStripper();
+                                content=stripper.getText(document);
+                            }else if(extension.equals("docx")){
+                                try(FileInputStream inputStream = new FileInputStream(file.toFile())) {
+                                    XWPFDocument document = new XWPFDocument(inputStream);
+                                    XWPFWordExtractor extractor = new XWPFWordExtractor(document);
+                                    content = extractor.getText();
+                                }catch (Exception e){
+                                    e.printStackTrace();
+                                    System.out.println("Failed to read"+fileName);
+                                    totalErrors++;
+                                }
+                            }else{
+                                content="This is image";
+                            }
+                            //String firstThreeLines = content.lines().limit(3).reduce("", (a, b) -> a + "\n" + b);
 
                             String fullPath = file.toAbsolutePath().toString();
 
@@ -58,14 +83,14 @@ public class FileCrawler {
                                 textFile.setRankingScore(Ranking.computeRankingScore(
                                         file,
                                         content,
-                                        "txt",
+                                        extension,
                                         Files.size(file),
                                         Files.getLastModifiedTime(file).toMillis()
                                 ));
 
                                 if (!textFile.getContent().equals(content)) {
                                     textFile.setContent(content);
-                                    textFile.setFirstThreeLines(firstThreeLines);
+                                    //textFile.setFirstThreeLines(firstThreeLines);
                                     textFile.setTimestamp(lastModifiedTime);
                                 }
                                 repository.save(textFile);
@@ -74,7 +99,7 @@ public class FileCrawler {
                                 double rankingScore = Ranking.computeRankingScore(
                                         file,
                                         content,
-                                        "txt",
+                                        extension,
                                         Files.size(file),
                                         Files.getLastModifiedTime(file).toMillis()
                                 );
@@ -82,8 +107,8 @@ public class FileCrawler {
                                 repository.save(new TextFile(
                                         fullPath,
                                         file.getFileName().toString(),
-                                        "txt",
-                                        firstThreeLines,
+                                        extension,
+                                        "",
                                         lastModifiedTime,
                                         content,
                                         rankingScore

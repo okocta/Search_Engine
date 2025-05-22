@@ -3,7 +3,7 @@ package com.example.demo;
 import java.io.*;
 import java.util.*;
 
-class Spelling {
+class Spelling implements SpellStrategy{
 
     private final SimpleMap nWords = new SimpleMap();
 
@@ -35,7 +35,7 @@ class Spelling {
         for(int i=0; i <= word.length(); ++i) for(char c='a'; c <= 'z'; ++c) result.add(word.substring(0, i) + String.valueOf(c) + word.substring(i));
         return result;
     }
-
+    @Override
     public final String correct(String word) {
         if(nWords.containsKey(word)) return word;
         ArrayList<String> list = edits(word);
